@@ -1043,8 +1043,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('')
         code.putln('#if !CYTHON_USE_MODULE_STATE')
         code.putln('static PyObject *%s = NULL;' % env.module_cname)
-        if Options.pre_import is not None:
-            code.putln('static PyObject *%s;' % Naming.preimport_cname)
         code.putln('#endif')
 
         code.putln('static const char * const %s = %s;' % (Naming.cfilenm_cname, Naming.file_c_macro))
@@ -3893,10 +3891,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 #            if entry.type.is_pyobject and entry.used:
 #                code.putln("Py_DECREF(%s); %s = 0;" % (
 #                    code.entry_as_pyobject(entry), entry.cname))
+        cnames = [Naming.cython_runtime_cname, Naming.builtins_cname]
         if Options.pre_import is not None:
-            code.put_decref_clear(Naming.preimport_cname, py_object_type,
-                                  nanny=False, clear_before_decref=True)
-        for cname in [Naming.cython_runtime_cname, Naming.builtins_cname]:
+            cnames.append(Naming.preimport_cname)
+        for cname in cnames:
             cname = code.name_in_main_c_code_module_state(cname)
             code.put_decref_clear(cname, py_object_type, nanny=False, clear_before_decref=True)
         code.put_decref_clear(
@@ -4092,11 +4090,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 builtins_cname,
                 code.error_goto(self.pos)))
         if Options.pre_import is not None:
+            preimport_cname = code.name_in_main_c_code_module_state(Naming.preimport_cname)
             code.putln(
                 '%s = __Pyx_PyImport_AddModuleRef("%s"); %s' % (
-                    Naming.preimport_cname,
+                    preimport_cname,
                     Options.pre_import,
-                    code.error_goto_if_null(Naming.preimport_cname, self.pos)))
+                    code.error_goto_if_null(preimport_cname, self.pos)))
 
     def generate_global_init_code(self, env, code):
         # Generate code to initialise global PyObject *

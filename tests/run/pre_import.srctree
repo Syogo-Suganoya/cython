@@ -1,0 +1,46 @@
+# Options.pre_import is undocumented but used in the wild, so test it.
+
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import preimported, a; a.test()"
+
+######## setup.py ########
+
+# The option must be set before the builtin scope gets created on import.
+import Cython.Compiler.Options
+Cython.Compiler.Options.pre_import = "preimported"
+
+from Cython.Build.Dependencies import cythonize
+
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize("a.pyx"),
+)
+
+######## preimported.py ########
+
+some_value = 42
+
+def some_function(x):
+    return x * 2
+
+len = "shadowed builtin"
+
+######## a.pyx ########
+
+def test():
+    # Names that are neither defined in the module nor builtins
+    # are looked up in the pre-imported module.
+    assert some_value == 42, some_value
+    assert some_function(21) == 42, some_function(21)
+
+    # Builtins take precedence over the pre-imported module.
+    assert len([1, 2]) == 2
+
+    # Undefined names that are missing from the pre-imported module still raise NameError.
+    try:
+        undefined_name
+    except NameError:
+        pass
+    else:
+        assert False, "NameError not raised"
