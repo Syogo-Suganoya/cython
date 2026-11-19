@@ -3165,6 +3165,12 @@ def p_c_func_declarator(s: PyrexScanner, pos, ctx, base, cmethod_flag: cython.bi
     # Opening paren has already been skipped
     args = p_c_arg_list(s, ctx, cmethod_flag = cmethod_flag,
                         nonempty_declarators = 0)
+    if s.sy in ('*', '**'):
+        s.error("C functions do not support star-arguments (*args, **kwargs) or keyword-only arguments",
+                fatal=False)
+        # Skip the rest of the argument list and keep going.
+        while s.sy not in (')', 'NEWLINE', 'EOF'):
+            s.next()
     ellipsis = p_optional_ellipsis(s)
     s.expect(')')
     nogil = p_nogil(s)
@@ -3763,6 +3769,16 @@ def p_c_modifiers(s: PyrexScanner) -> list:
 
 
 @cython.cfunc
+def _looks_like_star_args_signature(base_type, declarator) -> bool:
+    if not isinstance(base_type, Nodes.CSimpleBaseTypeNode) or base_type.module_path:
+        return False
+    if not isinstance(declarator, Nodes.CPtrDeclaratorNode):
+        return False
+    while isinstance(declarator, Nodes.CPtrDeclaratorNode):
+        declarator = declarator.base
+    return isinstance(declarator, Nodes.CNameDeclaratorNode)
+
+
 def p_c_func_or_var_declaration(s: PyrexScanner, pos, ctx):
     cmethod_flag: cython.bint = ctx.level in ('c_class', 'c_class_pxd')
     modifiers = p_c_modifiers(s)
@@ -3789,6 +3805,10 @@ def p_c_func_or_var_declaration(s: PyrexScanner, pos, ctx):
     if s.sy == ':':
         if ctx.level not in ('module', 'c_class', 'module_pxd', 'c_class_pxd', 'cpp_class') and not ctx.templates:
             s.error("C function definition not allowed here")
+        if _looks_like_star_args_signature(base_type, declarator):
+            # "cdef f(*args):" parses as a pointer declarator "(*args)" with base type "f".
+            error(declarator.pos,
+                  "C functions do not support star-arguments (*args, **kwargs) or keyword-only arguments")
         doc, suite = p_suite_with_docstring(s, Ctx(level='function'))
         result = Nodes.CFuncDefNode(pos,
             visibility = ctx.visibility,
