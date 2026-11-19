@@ -958,6 +958,10 @@ class ControlFlowAnalysis(CythonTransform):
     def visit_TypeidNode(self, node):
         return node
 
+    def visit_TypeofNode(self, node):
+        # The operand of typeof() is not evaluated at runtime.
+        return node
+
     def visit_IfStatNode(self, node):
         next_block = self.flow.newblock()
         parent = self.flow.block
