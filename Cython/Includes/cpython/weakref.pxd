@@ -32,6 +32,34 @@ cdef extern from *:
     # - If the reference is dead, set *pobj to NULL and return 0.
     # - On error, raise an exception and return -1.
 
+cdef extern from *:
+    # Backport PyWeakref_IsDead to Python < 3.14
+    """
+    #if PY_VERSION_HEX < 0x030e0000
+    static CYTHON_INLINE int __Pyx_PyWeakref_IsDead(PyObject *ref)
+    {
+        PyObject *obj;
+        if (ref == NULL) {
+            PyErr_BadInternalCall();
+            return -1;
+        }
+        if (!PyWeakref_Check(ref)) {
+            PyErr_SetString(PyExc_TypeError, "expected a weakref");
+            return -1;
+        }
+        obj = PyWeakref_GetObject(ref);
+        if (obj == NULL) return -1;
+        return obj == Py_None;
+    }
+    #else
+    #define __Pyx_PyWeakref_IsDead PyWeakref_IsDead
+    #endif
+    """
+    int PyWeakref_IsDead "__Pyx_PyWeakref_IsDead" (object ref) except -1
+    # Test if the weak reference ref is dead.
+    # - Return 1 if the reference is dead, 0 if it is alive.
+    # - If ref is not a weak reference object, raise TypeError and return -1.
+
 cdef extern from "Python.h":
 
     bint PyWeakref_Check(object ob)
