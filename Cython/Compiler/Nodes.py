@@ -1672,7 +1672,10 @@ class CStructOrUnionDefNode(StatNode):
         scope = None
         if self.attributes is not None:
             scope = StructOrUnionScope(self.name)
-        self.declare(env, scope)
+        if self.attributes and self._warn_about_previous_empty_definition(env):
+            self.entry = env.lookup_here(self.name)
+        else:
+            self.declare(env, scope)
         if self.attributes is not None:
             if self.in_pxd and not env.in_cinclude:
                 self.entry.defined_in_pxd = 1
@@ -1685,6 +1688,22 @@ class CStructOrUnionDefNode(StatNode):
                         type = type.base_type
                     if type == self.entry.type:
                         error(attr.pos, "Struct cannot contain itself as a member.")
+
+    def _warn_about_previous_empty_definition(self, env):
+        # Users sometimes write "ctypedef struct x: pass" as a forward declaration,
+        # which actually defines an empty struct, so that a later full definition gets ignored.
+        entry = env.lookup_here(self.name)
+        if not (entry and entry.is_type and entry.type.is_struct_or_union and entry.type.kind == self.kind):
+            return False
+        if entry.type.scope is None or entry.type.scope.entries:
+            return False
+        warning(self.pos,
+                "'%s' was already defined as an empty %s, ignoring this definition. "
+                "To forward declare it, leave out the body, as in '%s %s %s'." % (
+                    self.name, self.kind,
+                    'ctypedef' if entry.type.typedef_flag else 'cdef', self.kind, self.name),
+                level=1)
+        return True
 
     def analyse_expressions(self, env):
         return self
