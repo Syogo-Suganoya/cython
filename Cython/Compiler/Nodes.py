@@ -2793,6 +2793,7 @@ class CFuncDefNode(FuncDefNode):
                 base_type, env, nonempty=2 * (self.body is not None), visibility=self.visibility)
         if not typ.is_cfunction:
             error(self.pos, "Suite attached to non-function declaration")
+            return
         # Remember the actual type according to the function header
         # written here, because the type in the symbol table entry
         # may be different if we're overriding a C method inherited
