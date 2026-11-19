@@ -2655,6 +2655,20 @@ class NameNode(AtomicExprNode):
                         self.result(),
                         interned_cname,
                         code.error_goto_if_null(self.result(), self.pos)))
+            elif entry.scope.is_preimport_scope:
+                # Unknown name: look it up in the pre-imported module, then in the builtins.
+                namespace_cname = code.namespace_cname_in_module_state(entry.scope)
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("PyObjectGetAttrStrNoError", "ObjectHandling.c"))
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("GetBuiltinName", "ObjectHandling.c"))
+                code.putln(
+                    '%s = __Pyx_PyObject_GetAttrStrNoError(%s, %s);' % (
+                        self.result(), namespace_cname, interned_cname))
+                code.putln(
+                    'if (!%s && !PyErr_Occurred()) %s = __Pyx_GetBuiltinName(%s);' % (
+                        self.result(), self.result(), interned_cname))
+                code.putln(code.error_goto_if_null(self.result(), self.pos))
             else:
                 namespace_cname = code.namespace_cname_in_module_state(entry.scope)
                 namespace_cname_is_type = self.entry.scope.namespace_cname_is_type
