@@ -5547,13 +5547,16 @@ class CClassDefNode(ClassDefNode):
                 args = None
                 kwds = {}
                 if decorator_call:
-                    if isinstance(decorator_call, ExprNodes.SimpleCallNode):
-                        args = decorator_call.args
-                    else:
-                        args = decorator_call.positional_args.args
-                        kwds_ = decorator_call.keyword_args
-                        if kwds_:
-                            kwds = kwds_.as_python_dict()
+                    try:
+                        args, kwds_ = decorator_call.explicit_args_kwds()
+                    except CompileError:
+                        # e.g. "@dataclass(**kwargs)" - we need to know the arguments at compile time.
+                        error(decorator_call.pos,
+                              "Arguments of a dataclass decorator on a cdef class must be "
+                              "explicit keyword arguments (no '*' or '**' unpacking).")
+                        continue
+                    if kwds_:
+                        kwds = kwds_.as_python_dict()
                 extra_directives[known_name] = (args, kwds)
                 continue
             remaining_decorators.append(original_decorator)
