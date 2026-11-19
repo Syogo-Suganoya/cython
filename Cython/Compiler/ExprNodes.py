@@ -753,7 +753,13 @@ class ExprNode(Node):
         Return a node that represents the (type) result of an indexing operation,
         e.g. for tuple unpacking or iteration.
         """
-        return IndexNode(self.pos, base=self, index=IntNode.for_size(self.pos, index))
+        if index is not_a_constant:
+            # The index is not known at compile time, e.g. when unpacking "s[i:]".
+            index_node = IntNode(
+                self.pos, value='0', constant_result=not_a_constant, type=PyrexTypes.c_py_ssize_t_type)
+        else:
+            index_node = IntNode.for_size(self.pos, index)
+        return IndexNode(self.pos, base=self, index=index_node)
 
     # --------------- Type Analysis ------------------
 
