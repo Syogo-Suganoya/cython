@@ -12718,6 +12718,9 @@ class TypeofNode(ExprNode):
     type = py_object_type
 
     subexprs = ['literal']  # 'operand' will be ignored after type analysis!
+    # Let tree transforms see the operand (e.g. to replace "cython.cast()" calls),
+    # but it is never evaluated, so control flow analysis must skip it.
+    child_attrs = ['operand', 'literal']
 
     def analyse_types(self, env):
         self.operand = self.operand.analyse_types(env)
