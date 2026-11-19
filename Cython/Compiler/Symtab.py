@@ -383,6 +383,7 @@ class Scope:
     # node_positions_to_offset  {pos: offset}  Mapping from node positions to line table offsets
 
     is_builtin_scope = 0
+    is_preimport_scope = False
     is_py_class_scope = 0
     is_c_class_scope = 0
     is_closure_scope = 0
@@ -1260,6 +1261,8 @@ class Scope:
 class PreImportScope(Scope):
 
     namespace_cname = Naming.preimport_cname
+    namespace_cname_is_type = False
+    is_preimport_scope = True
 
     def __init__(self):
         Scope.__init__(self, Options.pre_import, None, None)
@@ -1508,6 +1511,9 @@ class ModuleScope(Scope):
             if self.has_import_star:
                 entry = self.declare_var(name, py_object_type, pos)
                 return entry
+            elif Options.pre_import is not None and self.outer_scope.outer_scope is not None:
+                # Look up unknown names in the pre-imported module at runtime.
+                return self.outer_scope.outer_scope.declare_builtin(name, pos)
             else:
                 if Options.error_on_unknown_names:
                     error(pos, "undeclared name not builtin: %s" % name)
