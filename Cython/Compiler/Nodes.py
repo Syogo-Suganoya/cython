@@ -476,6 +476,10 @@ class CDefExternNode(StatNode):
     child_attrs = ["body"]
 
     def analyse_declarations(self, env):
+        if env.is_local_scope:
+            # The declarations (and any included or verbatim C code) would always be global.
+            error(self.pos, "cdef extern blocks are only allowed at module level")
+            return
         old_cinclude_flag = env.in_cinclude
         env.in_cinclude = 1
         self.body.analyse_declarations(env)
@@ -1554,6 +1558,10 @@ class CVarDefNode(StatNode):
         if not dest_scope:
             dest_scope = env
         self.dest_scope = dest_scope
+
+        if self.visibility == 'extern' and dest_scope.is_local_scope:
+            error(self.pos, "extern declarations are only allowed at module level")
+            return
 
         if self.declarators:
             templates = self.declarators[0].analyse_templates()
