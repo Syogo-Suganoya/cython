@@ -4613,6 +4613,12 @@ class IndexNode(_IndexingBaseNode):
             self.parse_indexed_fused_cdef(env)
         else:
             self.type_indices = self.parse_index_as_types(env)
+            if self.type_indices and env.fused_to_specific:
+                # e.g. "func[numT]()" inside a fused function: use the specific type
+                self.type_indices = [
+                    t.specialize(env.fused_to_specific) if t.is_fused else t
+                    for t in self.type_indices
+                ]
             self.index = None  # FIXME: use a dedicated Node class instead of generic IndexNode
             if base_type.templates is None:
                 error(self.pos, "Can only parameterize template functions.")
